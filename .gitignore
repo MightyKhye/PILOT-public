@@ -1,0 +1,70 @@
+# Environment and secrets
+.env
+*.env
+!.env.example
+config.ini
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Meeting data and recordings
+data/
+logs/
+recordings/
+meetings/
+snippets/
+failed_chunks/
+*.wav
+*.mp3
+*.mp4
+
+# User documents (may contain sensitive info)
+Documents/
+summaries/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Backup files
+*.bak
+*.tmp
+*~
+
+# Logs
+*.log
+debug.log
+
+# OS
+Thumbs.db
+.DS_Store
