@@ -1311,7 +1311,8 @@ Date: {self.meeting_start_time.strftime('%Y-%m-%d %H:%M')}
                         {
                             'text': t['text'],
                             'timestamp': t['chunk_timestamp'].isoformat() if 'chunk_timestamp' in t else None,
-                            'confidence': t.get('confidence')
+                            'confidence': t.get('confidence'),
+                            'words': t.get('words')
                         }
                         for t in self.transcriptions
                     ], f, indent=2)
