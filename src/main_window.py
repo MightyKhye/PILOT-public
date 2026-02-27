@@ -191,7 +191,7 @@ class MainWindow:
         upload_top.pack(fill=tk.X)
 
         tk.Label(
-            upload_top, text="Upload Recording",
+            upload_top, text="Upload Recording(s)",
             bg=CARD, fg=FG, font=("Segoe UI", 10, "bold")
         ).pack(side=tk.LEFT)
 
@@ -253,28 +253,41 @@ class MainWindow:
         # ── Separator ────────────────────────────────────────────────────────
         tk.Frame(self.root, bg=BORDER, height=1).pack(fill=tk.X)
 
-        # ── Query bar ─────────────────────────────────────────────────────────
-        query_outer = tk.Frame(self.root, bg=BG, padx=28, pady=8)
-        query_outer.pack(fill=tk.BOTH, expand=True)
+        # ── Bottom bar: Ask + Status Report ───────────────────────────────────
+        # CARD background gives a subtle visual distinction from the BG content above
+        bottom_outer = tk.Frame(self.root, bg=CARD, padx=28, pady=12)
+        bottom_outer.pack(fill=tk.BOTH, expand=True)
+
+        # Two equal columns
+        bottom_left = tk.Frame(bottom_outer, bg=CARD)
+        bottom_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 16))
+
+        bottom_right = tk.Frame(bottom_outer, bg=CARD)
+        bottom_right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(16, 0))
+
+        # ── LEFT: Ask about meetings ──────────────────────────────────────────
+        query_outer = bottom_left
 
         tk.Label(
-            query_outer, text="Ask about your meetings",
-            bg=BG, fg=FG, font=("Segoe UI", 10, "bold")
-        ).pack(anchor="w", pady=(0, 6))
+            query_outer, text="Ask about meetings",
+            bg=CARD, fg=FG, font=("Segoe UI", 9, "bold")
+        ).pack(anchor="w", pady=(0, 5))
 
-        input_row = tk.Frame(query_outer, bg=BG)
+        input_row = tk.Frame(query_outer, bg=CARD)
         input_row.pack(fill=tk.X)
+
+        # Wrapper frame gives the entry a clean 1px border without tkinter's box relief
+        entry_wrapper = tk.Frame(input_row, bg=BORDER, padx=1, pady=1)
+        entry_wrapper.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         PLACEHOLDER = "What action items are assigned to me?"
         self._query_entry = tk.Entry(
-            input_row,
-            bg=CARD, fg=FG_DIM, insertbackground=FG,
-            font=("Segoe UI", 10), relief=tk.FLAT,
-            highlightthickness=1,
-            highlightbackground=BORDER,
-            highlightcolor=ACCENT,
+            entry_wrapper,
+            bg=BG, fg=FG_DIM, insertbackground=FG,
+            font=("Segoe UI", 9), relief=tk.FLAT,
+            highlightthickness=0,
         )
-        self._query_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=6)
+        self._query_entry.pack(fill=tk.X, ipady=5)
         self._query_entry.insert(0, PLACEHOLDER)
 
         def _focus_in(e):
@@ -297,17 +310,17 @@ class MainWindow:
             input_row, text="Ask",
             command=self._submit_query,
             bg=ACCENT, fg="white",
-            font=("Segoe UI", 10, "bold"), relief=tk.FLAT,
-            cursor="hand2", padx=18, pady=6,
+            font=("Segoe UI", 9, "bold"), relief=tk.FLAT,
+            cursor="hand2", padx=14, pady=5,
             activebackground="#0096b3",
         )
-        self._ask_btn.pack(side=tk.LEFT, padx=(8, 0))
+        self._ask_btn.pack(side=tk.LEFT, padx=(6, 0))
 
         # Answer area — packed on first query
-        self._answer_frame = tk.Frame(query_outer, bg=BG)
+        self._answer_frame = tk.Frame(query_outer, bg=CARD)
         self._answer_text = scrolledtext.ScrolledText(
             self._answer_frame,
-            bg=CARD, fg=FG,
+            bg=BG, fg=FG,
             font=("Segoe UI", 9),
             relief=tk.FLAT, wrap=tk.WORD,
             height=7, padx=10, pady=8,
@@ -315,6 +328,27 @@ class MainWindow:
         )
         self._answer_text.pack(fill=tk.BOTH, expand=True)
         self._answer_text.config(state=tk.DISABLED)
+
+        # ── RIGHT: Status Report ──────────────────────────────────────────────
+        tk.Label(
+            bottom_right, text="Status Report",
+            bg=CARD, fg=FG, font=("Segoe UI", 9, "bold")
+        ).pack(anchor="w", pady=(0, 5))
+
+        self._status_report_btn = tk.Button(
+            bottom_right, text="Generate Status Report",
+            command=self._run_status_report,
+            bg=ACCENT, fg="white",
+            font=("Segoe UI", 9, "bold"), relief=tk.FLAT,
+            cursor="hand2", padx=14, pady=5,
+            activebackground="#0096b3",
+        )
+        self._status_report_btn.pack(fill=tk.X)
+
+        self._status_report_status = tk.Label(
+            bottom_right, text="", bg=CARD, fg=FG_DIM, font=("Segoe UI", 8)
+        )
+        self._status_report_status.pack(anchor="w", pady=(5, 0))
 
     # ── Window lifecycle ─────────────────────────────────────────────────────
 
@@ -462,24 +496,26 @@ class MainWindow:
     def _start_upload(self):
         if self._upload_in_progress:
             return
-        if self._state == MeetingState.RECORDING:
-            self._upload_status_label.config(text="Cannot upload while recording.")
-            self._upload_status_label.pack(anchor="w")
-            return
 
-        file_path = filedialog.askopenfilename(
-            title="Select Meeting Recording",
+        file_paths = filedialog.askopenfilenames(
+            title="Select Meeting Recording(s)",
             parent=self.root,
             filetypes=[
                 ("Audio Files", "*.wav *.m4a *.mp3 *.mp4 *.aac *.flac *.ogg"),
                 ("All Files", "*.*"),
             ],
         )
-        if not file_path:
+        if not file_paths:
             return
 
-        audio_file = Path(file_path)
-        self._upload_file_label.config(text=audio_file.name)
+        audio_files = [Path(p) for p in file_paths]
+        total_files = len(audio_files)
+
+        if total_files == 1:
+            self._upload_file_label.config(text=audio_files[0].name)
+        else:
+            self._upload_file_label.config(text=f"{total_files} files selected")
+
         self._upload_in_progress = True
         self._upload_btn.config(state=tk.DISABLED, cursor="")
 
@@ -490,54 +526,109 @@ class MainWindow:
         self._upload_status_label.config(text="Starting…")
 
         def _run():
-            try:
-                def _cb(step: str, done: int = 0, total: int = 0):
-                    def _update():
-                        self._upload_status_label.config(text=step)
-                        if total:
-                            self._upload_progress["value"] = (done / total) * 100
-                        else:
-                            # nudge bar to show activity
-                            cur = self._upload_progress["value"]
-                            self._upload_progress["value"] = min(cur + 1.5, 95)
-                    self.root.after(0, _update)
+            succeeded = 0
+            failed = 0
 
-                html_path = self.app.manager.process_uploaded_file(
-                    audio_path=audio_file,
-                    status_callback=_cb,
-                )
+            # Creep animation: slowly inches the progress bar toward the next milestone
+            # while a chunk is being processed (each chunk can take 30+ seconds).
+            # Uses a mutable list as a cancellation flag so nested closures can share it.
+            _creep_cancel = [False]
 
-                def _finish():
-                    self._upload_in_progress = False
-                    self._upload_btn.config(state=tk.NORMAL, cursor="hand2")
-                    if html_path:
-                        self._upload_progress["value"] = 100
-                        self._upload_status_label.config(
-                            text="Complete — opening in browser"
+            def _cancel_creep():
+                _creep_cancel[0] = True
+
+            def _start_creep(target_pct: float):
+                """Advance the bar toward target_pct - 0.5 at 0.2% per 300ms."""
+                _creep_cancel[0] = False
+                ceiling = target_pct - 0.5
+
+                def _step():
+                    if _creep_cancel[0]:
+                        return
+                    cur = self._upload_progress["value"]
+                    if cur < ceiling:
+                        self._upload_progress["value"] = min(cur + 0.2, ceiling)
+                        self.root.after(300, _step)
+
+                self.root.after(300, _step)
+
+            for i, audio_file in enumerate(audio_files, 1):
+                # Update file indicator for each file
+                def _set_file(n=i, name=audio_file.name):
+                    if total_files > 1:
+                        self._upload_file_label.config(
+                            text=f"File {n} of {total_files}: {name}"
                         )
-                        try:
-                            if sys.platform == "win32":
-                                os.startfile(str(html_path))
-                        except Exception:
-                            pass
-                        self._load_recent_meetings()
-                        self.root.after(4000, self._reset_upload_ui)
+                    self._upload_progress["value"] = 0
+                    self._upload_status_label.config(text="Starting…")
+                self.root.after(0, _set_file)
+
+                try:
+                    def _cb(step: str, done: int = 0, total: int = 0):
+                        def _update():
+                            _cancel_creep()
+                            self._upload_status_label.config(text=step)
+                            if total:
+                                new_val = (done / total) * 100
+                                self._upload_progress["value"] = new_val
+                                # Creep toward next chunk's milestone while it processes
+                                if done < total:
+                                    _start_creep((done + 1) / total * 100)
+                            else:
+                                cur = self._upload_progress["value"]
+                                self._upload_progress["value"] = min(cur + 1.5, 95)
+                        self.root.after(0, _update)
+
+                    html_path = self.app.manager.process_uploaded_file(
+                        audio_path=audio_file,
+                        status_callback=_cb,
+                    )
+
+                    if html_path:
+                        succeeded += 1
+                        # Auto-open browser only for single-file uploads
+                        if total_files == 1:
+                            try:
+                                if sys.platform == "win32":
+                                    os.startfile(str(html_path))
+                            except Exception:
+                                pass
+                    else:
+                        failed += 1
+                        logger.error(f"process_uploaded_file returned None for {audio_file.name}")
+
+                except Exception as exc:
+                    failed += 1
+                    logger.error(f"Error processing {audio_file.name}: {exc}", exc_info=True)
+                    def _show_err(name=audio_file.name, e=exc):
+                        self._upload_status_label.config(
+                            text=f"Error on {name}: {str(e)[:60]} — continuing…"
+                        )
+                    self.root.after(0, _show_err)
+
+            # All files done
+            def _finish(s=succeeded, f=failed):
+                self._upload_in_progress = False
+                self._upload_btn.config(state=tk.NORMAL, cursor="hand2")
+                self._load_recent_meetings()
+                if total_files == 1:
+                    if s:
+                        self._upload_progress["value"] = 100
+                        self._upload_status_label.config(text="Complete — opening in browser")
                     else:
                         self._upload_progress["value"] = 0
+                        self._upload_status_label.config(text="Processing failed — check logs")
+                else:
+                    self._upload_progress["value"] = 100 if f == 0 else 0
+                    if f == 0:
+                        self._upload_status_label.config(text=f"All {total_files} files complete")
+                    else:
                         self._upload_status_label.config(
-                            text="Processing failed — check logs"
+                            text=f"{s} of {total_files} succeeded, {f} failed — check logs"
                         )
+                self.root.after(4000, self._reset_upload_ui)
 
-                self.root.after(0, _finish)
-
-            except Exception as exc:
-                def _err():
-                    self._upload_in_progress = False
-                    self._upload_btn.config(state=tk.NORMAL, cursor="hand2")
-                    self._upload_status_label.config(
-                        text=f"Error: {str(exc)[:70]}"
-                    )
-                self.root.after(0, _err)
+            self.root.after(0, _finish)
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -719,6 +810,34 @@ class MainWindow:
             finally:
                 self.root.after(
                     0, lambda: self._ask_btn.config(state=tk.NORMAL, cursor="hand2")
+                )
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # ── Status Report ─────────────────────────────────────────────────────────
+
+    def _run_status_report(self):
+        """Generate a PM-focused status report and hand off to run_status_check()."""
+        self._status_report_btn.config(state=tk.DISABLED, cursor="")
+        self._status_report_status.config(text="Generating…")
+
+        def _run():
+            try:
+                self.app.run_status_check()
+                self.root.after(
+                    0, lambda: self._status_report_status.config(text="Done — report opened")
+                )
+            except Exception as exc:
+                self.root.after(
+                    0, lambda: self._status_report_status.config(
+                        text=f"Error: {str(exc)[:60]}"
+                    )
+                )
+            finally:
+                self.root.after(
+                    0, lambda: self._status_report_btn.config(
+                        state=tk.NORMAL, cursor="hand2"
+                    )
                 )
 
         threading.Thread(target=_run, daemon=True).start()

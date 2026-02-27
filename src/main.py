@@ -297,7 +297,7 @@ class MeetingListenerApp:
         def create_window():
             window = tk.Tk()
             window.title("Pilot - Project Status Check")
-            window.geometry("1000x700")  # Wider window for comprehensive report
+            window.geometry("760x700")  # Wider window for comprehensive report
 
             # Header with confidence
             confidence = result['confidence']
@@ -356,8 +356,8 @@ class MeetingListenerApp:
             # Status report with monospace font for better formatting
             text_area = scrolledtext.ScrolledText(
                 window,
-                wrap=tk.NONE,  # Don't wrap - preserve formatting
-                font=('Consolas', 10),  # Monospace font for structured report
+                wrap=tk.WORD,
+                font=('Segoe UI', 10),
                 bg='#f8f9fa',
                 fg='#2c3e50',
                 padx=15,
